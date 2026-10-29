@@ -1,7 +1,6 @@
 results/
 __pycache__/
 output
-signals/
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,vs
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,vs

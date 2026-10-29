@@ -68,7 +68,7 @@ All four designs were tested at a sampling frequency of **4,000 Hz** with $G_0=1
 
 The frequency responses are computed with `scipy.signal.freqz`. The bandwidth is estimated from the two crossings of the selected amplitude level around the response minimum or maximum, using linear interpolation between neighboring frequency samples. For the tested cases, the notch level is $\sqrt{2}$ times the measured minimum gain and the resonance level is the measured maximum gain divided by $\sqrt{2}$.
 
-![Figure 1: Frequency responses of four filter designs](Figure_1.png)
+![Figure 1: Frequency responses of four filter designs](./images/filter_frequency_responses.png)
 
 *Figure 1. Frequency responses for the two notch and two resonance designs. Blue: calculated response; red dashed: target center frequency; green dotted: target center gain; orange dashed: measured bandwidth boundaries; purple dotted: bandwidth measurement level.*
 
@@ -88,7 +88,7 @@ The ECG-like waveform contains simulated P, Q, R, S, and T components. The noisy
 
 A notch filter was applied with $f_c=50$ Hz, $\mathrm{BW}=5$ Hz, $G_0=1$, and $G_c=0.1$.
 
-![Figure 2: ECG signal before and after notch filtering](ecg_notch.png)
+![Figure 2: ECG signal before and after notch filtering](./images/ecg_notch.png)
 
 *Figure 2. Time-domain comparison of clean, noisy, and filtered ECG-like signals (top), and frequency-domain comparison before and after filtering (bottom).*
 
@@ -110,7 +110,7 @@ The desired signal is an amplitude-modulated 100 Hz tone. The noisy mixture addi
 
 A resonance filter was applied with $f_c=100$ Hz, $\mathrm{BW}=10$ Hz, $G_0=1$, and $G_c=5$.
 
-![Figure 3: Tone signal before and after resonance filtering](tone_resonance.png)
+![Figure 3: Tone signal before and after resonance filtering](./images/tone_resonance.png)
 
 *Figure 3. Time-domain comparison of clean, noisy, and filtered tone-like signals (top), and frequency-domain comparison before and after filtering (bottom).*
 
@@ -131,7 +131,7 @@ The measured amplitude ratio is consistent with the numerical frequency-response
 
 The two notch configurations were compared at 50 Hz using bandwidths of **5 Hz** and **0.5 Hz**. The two resonance configurations were compared at 100 Hz using bandwidths of **10 Hz** and **1 Hz**.
 
-![Figure 4: Notch and resonance bandwidth comparison](bandwidth_comparison.png)
+![Figure 4: Notch and resonance bandwidth comparison](./images/bandwidth_comparison.png)
 
 *Figure 4. Frequency-response comparison for the two notch bandwidths (top) and the two resonance bandwidths (bottom). The dotted horizontal lines indicate the requested center gains.*
 

@@ -1,21 +1,24 @@
-# Second-Order IIR Parametric Equalizer Filter Design
+# Second-Order IIR Filter Design Using Pole–Zero Placement
 
-**DSP assignment — implementation and evaluation of the pole–zero placement method**
+**DSP assignment — implementation, numerical validation, and signal experiments**
 
-This project implements the second-order IIR filter design approach described by Van Waterschoot and Moonen (2007), *A Pole-Zero Placement Technique for Designing Second-Order IIR Parametric Equalizer Filters*. It examines two filter types: **notch** (attenuation around a chosen frequency) and **resonance** (amplification around a chosen frequency).
+This project implements the second-order IIR parametric equalizer design method described by Van Waterschoot and Moonen (2007). Two types of filters are studied:
 
-The aim is to implement the coefficient calculations, check the resulting frequency responses against the requested specifications, and demonstrate their effect on example signals.
+- **Notch filters**, which attenuate a selected frequency region.
+- **Resonance filters**, which amplify a selected frequency region.
 
-## 1. Method
+The objective is to calculate the filter coefficients from the requested specifications, evaluate the resulting frequency responses, and apply the filters to example signals. The results also show where the approximate design equations do not match the requested gains exactly.
 
-The filter is represented by
+## 1. Filter design method
+
+The second-order transfer function is
 
 $$
 H(z)=K\frac{1-2r_z\cos(\omega_c)z^{-1}+r_z^2z^{-2}}
 {1-2r_p\cos(\omega_c)z^{-1}+r_p^2z^{-2}},
 $$
 
-where $r_z$ and $r_p$ are the zero and pole radii, $\omega_c$ is the specified center angular frequency, and $K$ is the gain factor. The coefficients returned by `design_biquad_filter()` are
+where $r_z$ and $r_p$ are the zero and pole radii, $\omega_c$ is the center angular frequency, and $K$ is a gain factor. The implemented function returns the numerator and denominator coefficients:
 
 $$
 \begin{aligned}
@@ -24,152 +27,143 @@ a &= [1,\;-2r_p\cos(\omega_c),\;r_p^2].
 \end{aligned}
 $$
 
-The implementation takes `G0` (reference/DC gain), `Gc` (desired center gain), `B` (bandwidth in rad/sample), and `wc` (center frequency in rad/sample). Frequency specifications in Hz are converted using $\omega_c=2\pi f_c/f_s$ and $B=2\pi\mathrm{BW}/f_s$.
+The function `design_biquad_filter(G0, Gc, B, wc)` takes:
 
-The implementation uses the paper's **approximate** pole–zero placement equations. It supports attenuation cases $0<G_c/G_0<1$, amplification cases $G_c/G_0\ge 2$, and the trivial constant-gain case $G_c/G_0=1$. The intermediate amplification range $1<G_c/G_0<2$ is not implemented.
-
-## 2. Files
-
-| File | Purpose |
+| Parameter | Meaning |
 |---|---|
-| `design_biquad_filter.py` | Calculates second-order IIR numerator and denominator coefficients. |
-| `validate_filter.py` | Checks gain, center frequency, bandwidth, pole/zero placement, and stability for four designs; plots their responses. |
-| `generate_signals.py` | Generates reproducible synthetic ECG-like and audio-like WAV signals. |
-| `filter_analysis.ipynb` | Applies the filters to signals, compares waveforms and spectra, and computes evaluation metrics. |
-| `Figure_1.png` | Frequency responses exported directly from `validate_filter.py`. |
+| `G0` | Requested reference gain (DC gain for the resonance normalization) |
+| `Gc` | Requested gain at the center frequency |
+| `B` | Bandwidth in radians/sample |
+| `wc` | Center angular frequency in radians/sample |
 
+When the frequency and bandwidth are given in hertz, they are converted using
+
+$$
+\omega_c = \frac{2\pi f_c}{f_s}, \qquad B = \frac{2\pi\,\mathrm{BW}}{f_s}.
+$$
+
+The implementation uses the paper's **approximate pole–zero placement expressions**. It handles $0<G_c/G_0<1$ (notch), $G_c/G_0\geq2$ (resonance), and $G_c/G_0=1$ (constant gain). The intermediate amplification range $1<G_c/G_0<2$ is not implemented. For the notch branch, the current code sets $K=G_0$; this does not guarantee that the *actual* DC gain equals $G_0$.
+
+## 2. Project files
+
+| File | Description |
+|---|---|
+| `design_biquad_filter.py` | Calculates the IIR numerator and denominator coefficients. |
+| `validate_filter.py` | Evaluates four filter designs, reports gain and bandwidth errors, checks pole/zero radii and stability, and plots the responses. |
+| `generate_signals.py` | Creates four reproducible synthetic WAV files: clean and noisy ECG-like signals, and clean and noisy tone-like signals. |
+| `filter_analysis.ipynb` | Applies the designed filters, compares signals in the time and frequency domains, and calculates experimental metrics. |
+
+The four figures below are saved as PNG files in the repository root.
 
 ## 3. Numerical validation
 
-All four configurations use a sampling frequency of **4,000 Hz**, reference gain $G_0=1$, and the parameters below.
+All four designs were tested at a sampling frequency of **4,000 Hz** with $G_0=1$.
 
-| Filter | Center frequency | Target bandwidth | Target center gain | Actual center gain | Center-gain error | Measured bandwidth | BW error |
+| Filter | $f_c$ | Target BW | Target $G_c$ | Measured gain at $f_c$ | Gain error | Measured BW | BW error |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Notch | 50 Hz | 5 Hz | 0.1 | 0.098732 | −1.27% | 5.008561 Hz | +0.17% |
 | Notch | 50 Hz | 0.5 Hz | 0.1 | 0.100145 | +0.15% | 0.500070 Hz | +0.01% |
 | Resonance | 100 Hz | 10 Hz | 5 | 8.014332 | +60.29% | 10.152023 Hz | +1.52% |
 | Resonance | 100 Hz | 1 Hz | 5 | 5.246629 | +4.93% | 1.039014 Hz | +3.90% |
 
-The response is evaluated with `scipy.signal.freqz`. The measured bandwidth is the distance between the two interpolated crossings of the bandwidth level around the response minimum/maximum. The bandwidth levels follow the definitions used in the validation script (including the $\sqrt{2}$ threshold for the tested notch and resonance cases).
+The frequency responses are computed with `scipy.signal.freqz`. The bandwidth is estimated from the two crossings of the selected amplitude level around the response minimum or maximum, using linear interpolation between neighboring frequency samples. For the tested cases, the notch level is $\sqrt{2}$ times the measured minimum gain and the resonance level is the measured maximum gain divided by $\sqrt{2}$.
 
-**Figure 1.** Frequency responses of the four tested IIR filter configurations. The blue curves show the measured magnitude response, red dashed lines mark the target center frequencies, green dotted lines mark the desired center gains, orange dashed lines show the measured bandwidth boundaries, and purple dotted lines indicate the bandwidth measurement levels.
+![Figure 1: Frequency responses of four filter designs](Figure_1.png)
 
-![Figure 1 — Four filter frequency responses](Figure_1.png)
+*Figure 1. Frequency responses for the two notch and two resonance designs. Blue: calculated response; red dashed: target center frequency; green dotted: target center gain; orange dashed: measured bandwidth boundaries; purple dotted: bandwidth measurement level.*
 
-**Stability and placement.** All four tested designs have poles strictly inside the unit circle. Their pole/zero radii also satisfy the expected ordering: poles closer to the origin than zeros for the tested notch filters, and zeros closer to the origin than poles for the tested resonance filters. These checks confirm stability for the four selected parameter sets, not for every possible input.
+All four tested filters have poles strictly inside the unit circle and satisfy the expected pole–zero radius ordering. Therefore, **these four configurations are stable**. This does not establish stability for every possible input to the design function.
 
-**Reference gain.** The measured DC gains for the two notch cases are **0.827824** (5 Hz bandwidth) and **1.001074** (0.5 Hz bandwidth). The first is **17.22% below** the specified $G_0=1$. Both tested resonance filters have DC gain approximately equal to 1.
+The measured DC gains are **0.827824** and **1.001074** for the 5 Hz and 0.5 Hz notch filters, respectively. In particular, the 5 Hz notch has a **−17.22% DC-gain error**, despite its small error at the center frequency. Both tested resonance filters have DC gain approximately equal to 1.
 
-## 4. Interpretation of the results
+The 10 Hz resonance filter has the largest center-gain error: it reaches approximately **8.01 instead of 5**. The 1 Hz resonance filter is closer to the requested gain, but its relative bandwidth error is larger. These observations demonstrate that a stable filter with the expected pole–zero placement does not necessarily meet every requested specification accurately when approximate design expressions are used.
 
-The **0.5 Hz notch** closely matches the target center gain and bandwidth. The **5 Hz notch** also gives a good center-gain and bandwidth match, but its DC gain is noticeably lower than requested.
+## 4. Signal experiments
 
-The **10 Hz resonance** exhibits the largest discrepancy: the center gain is about **8.01 instead of 5**, an error of **+60.29%**. Reducing the resonance bandwidth to **1 Hz** brings the center gain closer to the target (**5.25**, +4.93%), although its relative bandwidth error is larger than in the 10 Hz case.
+Two **synthetic**, 10-second signals were generated at 4,000 Hz. Clean references are available because the signals were constructed programmatically. These examples are useful for controlled testing, but they are **not real-life recordings**.
 
-These results demonstrate a limitation of the **approximate design equations**: satisfying the pole/zero geometry and producing a stable filter does **not** guarantee that every specified gain and bandwidth will be matched accurately. The observed trends apply to these test configurations; they are not a general proof that narrower bandwidth always improves every metric.
+### 4.1 ECG-like signal: 50 Hz notch filtering
 
-The reported center-frequency deviations are only a few thousandths of a hertz and are measured on a discrete `freqz` grid; they should not be interpreted as exact continuous-frequency peak shifts.
+The ECG-like waveform contains simulated P, Q, R, S, and T components. The noisy version adds a 50 Hz sinusoidal interference, low-frequency baseline wander, and white noise.
 
-## 5. Signal experiments
+A notch filter was applied with $f_c=50$ Hz, $\mathrm{BW}=5$ Hz, $G_0=1$, and $G_c=0.1$.
 
-## Signal Experiments
+![Figure 2: ECG signal before and after notch filtering](ecg_notch.png)
 
-To evaluate the practical behaviour of the implemented filters, two synthetic signals were generated using `generate_signals.py`. Both signals were sampled at 4000 Hz and had a duration of 10 seconds.
+*Figure 2. Time-domain comparison of clean, noisy, and filtered ECG-like signals (top), and frequency-domain comparison before and after filtering (bottom).*
 
-The first signal represents an ECG-like waveform contaminated with 50 Hz power-line interference, low-frequency baseline wander and white noise. The second represents an amplitude-modulated 100 Hz tone mixed with additional frequency components and white noise.
+The 50 Hz component is strongly attenuated after filtering, and the time-domain waveform follows the clean reference more closely. The filter does not remove all disturbances: baseline wander and some residual noise remain.
 
-The signals are synthetic rather than real recordings. This allows comparison against known clean references, but does not establish performance on real-world measurements.
+The notebook reports the following mean squared errors (MSE) relative to the clean synthetic reference:
 
-### ECG-like Signal — Notch Filtering
+| Metric | Value |
+|---|---:|
+| MSE before filtering | 0.021026 |
+| MSE after filtering | 0.002597 |
+| MSE reduction | **87.65%** |
 
-A notch filter was applied to suppress the 50 Hz interference component.
+The MSE reduction is specific to this generated example and is not a general estimate of ECG denoising performance.
 
-The filter parameters were:
+### 4.2 Tone-like signal: 100 Hz resonance filtering
 
-| Parameter | Value |
-|---|---|
-| Center frequency | 50 Hz |
-| Bandwidth | 5 Hz |
-| G0 | 1 |
-| Gc | 0.1 |
+The desired signal is an amplitude-modulated 100 Hz tone. The noisy mixture additionally contains 40 Hz, 180 Hz, and 300 Hz components, together with white noise.
 
-![Figure 2: ECG time-domain and frequency-domain comparison](ecg_notch.png)
+A resonance filter was applied with $f_c=100$ Hz, $\mathrm{BW}=10$ Hz, $G_0=1$, and $G_c=5$.
 
-*Figure 2. Comparison of the clean, noisy and filtered ECG-like signals in the time domain, together with the frequency spectra before and after filtering.*
+![Figure 3: Tone signal before and after resonance filtering](tone_resonance.png)
 
-The time-domain plot shows that the 50 Hz oscillations are substantially reduced after filtering. The filtered waveform more closely follows the clean ECG-like reference, although some baseline wander and residual noise remain.
+*Figure 3. Time-domain comparison of clean, noisy, and filtered tone-like signals (top), and frequency-domain comparison before and after filtering (bottom).*
 
-The frequency-domain plot confirms that the component at 50 Hz is attenuated. This demonstrates the notch filter's ability to suppress a selected interference frequency while retaining much of the underlying waveform.
+The 100 Hz component is amplified considerably. The other frequency components remain visible because this is a **resonance filter**, not a general-purpose noise suppression filter. Consequently, the filtered waveform is not expected to reproduce the clean tone exactly.
 
-The measured mean squared error (MSE) was reduced by approximately 87.7% in this synthetic experiment.
+The notebook measures the amplitude at 100 Hz as follows:
 
-### Tone-like Signal — Resonance Filtering
+| Metric | Value |
+|---|---:|
+| Amplitude before filtering | 0.060166 |
+| Amplitude after filtering | 0.481256 |
+| Measured amplitude ratio | **7.9988** |
+| Requested center gain | **5.0000** |
 
-A resonance filter was applied to amplify the desired 100 Hz component of a synthetic audio-like signal.
+The measured amplitude ratio is consistent with the numerical frequency-response result (approximately 8.014 at 100 Hz). The small difference reflects measurement and finite-signal effects. This experiment confirms amplification of the desired frequency, but also illustrates the gain inaccuracy of this particular approximate design.
 
-The filter parameters were:
+## 5. Effect of bandwidth
 
-| Parameter | Value |
-|---|---|
-| Center frequency | 100 Hz |
-| Bandwidth | 10 Hz |
-| G0 | 1 |
-| Gc | 5 |
+The two notch configurations were compared at 50 Hz using bandwidths of **5 Hz** and **0.5 Hz**. The two resonance configurations were compared at 100 Hz using bandwidths of **10 Hz** and **1 Hz**.
 
-![Figure 3: Tone time-domain and frequency-domain comparison](tone_resonance.png)
+![Figure 4: Notch and resonance bandwidth comparison](bandwidth_comparison.png)
 
-*Figure 3. Comparison of the clean, noisy and filtered tone-like signals in the time domain, together with the frequency spectra before and after resonance filtering.*
+*Figure 4. Frequency-response comparison for the two notch bandwidths (top) and the two resonance bandwidths (bottom). The dotted horizontal lines indicate the requested center gains.*
 
-The frequency-domain plot shows a significant increase in the amplitude around 100 Hz after filtering. The interference components at 40 Hz, 180 Hz and 300 Hz remain visible because the resonance filter is designed to amplify a selected frequency region rather than remove all unwanted components.
+For the notch filter, reducing the bandwidth produces a more localized attenuation around 50 Hz. The 0.5 Hz case also preserves the reference gain more accurately outside the narrow attenuation region.
 
-In the time domain, the filtered signal does not necessarily resemble the clean reference. This is expected because resonance filtering amplifies the desired frequency component without completely suppressing the other components.
+For the resonance filter, the 1 Hz bandwidth produces a narrower peak and a center gain closer to the requested value. However, its relative bandwidth error is approximately **3.90%**, compared with **1.52%** for the 10 Hz case. A narrower bandwidth therefore does not automatically improve every accuracy metric.
 
-The numerical validation showed that the actual gain at 100 Hz was approximately 8.014 instead of the requested gain of 5, corresponding to an error of +60.29%.
+## 6. Limitations and conclusions
 
-This is an important limitation of the approximate pole-zero placement method for the selected parameters.
+The implemented method successfully produces notch and resonance responses for the four tested configurations. The poles are inside the unit circle in each test, and the filters exhibit the expected attenuation or amplification behavior.
 
-### Influence of Bandwidth
+However, the numerical experiments show that **stability and the expected response shape do not imply exact compliance with the requested gains**. The 5 Hz notch has a substantial DC-gain error, while the 10 Hz resonance has a substantial center-gain error. These deviations should be considered when using the approximate equations.
 
-The frequency responses were also compared using two bandwidth values for each filter type.
+The experiments have three further limitations:
 
-![Figure 4: Comparison of notch and resonance filter bandwidths](bandwidth_comparison.png)
+1. Only four parameter combinations were checked; the implementation was not exhaustively tested over its supported input ranges.
+2. The frequency-response measurements use a discrete numerical grid and interpolation, so the reported frequencies and bandwidths are estimates.
+3. Both signal experiments use **synthetic data**, not measured or recorded real-life signals. If the assignment requires at least two real-life signals, additional experiments with actual recordings are necessary before treating the submission as complete.
 
-*Figure 4. Comparison of frequency responses for notch filters with bandwidths of 5 Hz and 0.5 Hz, and resonance filters with bandwidths of 10 Hz and 1 Hz.*
+## 7. Reproducing the results
 
-For the notch filters, reducing the bandwidth from 5 Hz to 0.5 Hz produces a narrower attenuation region around 50 Hz. The response outside this region remains closer to the desired baseline gain.
-
-For the resonance filters, reducing the bandwidth from 10 Hz to 1 Hz produces a narrower peak around 100 Hz. The actual center gain also becomes closer to the requested value, decreasing from approximately 8.014 to 5.247.
-
-However, the relative bandwidth error increases from approximately 1.52% to 3.90% in the resonance examples. Therefore, narrower bandwidth does not necessarily improve the accuracy of every filter characteristic.
-
-### Discussion
-
-The experiments demonstrate that the implemented filters perform their intended qualitative functions: the notch filter attenuates a selected frequency, while the resonance filter amplifies a selected frequency region.
-
-All four tested configurations were stable, but their gain accuracy varied considerably. The results highlight the importance of evaluating the actual frequency response instead of assuming that the approximate design equations reproduce all requested specifications exactly.
-
-The experiments also illustrate the difference between selective attenuation and selective amplification. A resonance filter should not be interpreted as a general noise-removal filter.
-
-## 6. Limitations
-
-- The design equations are approximations, and the errors depend on the requested parameters.
-- Only four filter configurations were evaluated numerically.
-- The signal examples are **synthetic, not real-world recordings**. If the assignment requires real-life signals, recordings or externally sourced measured data must be added before submission.
-- The validation measures frequency response numerically; its resolution and interpolation affect the reported precision.
-- The notebook's MSE uses a known synthetic reference, which would not ordinarily be available for a real measurement.
-
-## 7. Reproducing the experiments
-
-Requires Python with `numpy`, `scipy`, `matplotlib`, and Jupyter (`notebook` or `jupyterlab`). Run from the project directory:
+Use Python with `numpy`, `scipy`, `matplotlib`, and Jupyter installed. From the repository root, run:
 
 ```bash
+python -m pip install numpy scipy matplotlib notebook
 python generate_signals.py
 python validate_filter.py
 jupyter notebook filter_analysis.ipynb
 ```
 
-In the notebook, select **Restart Kernel and Run All Cells**. Generated WAV files are stored in `signals/`; filtered WAV outputs are written to `output/`. Generated data and outputs can be excluded from version control because they are reproducible.
+In the notebook, select **Restart Kernel and Run All Cells**. `generate_signals.py` writes the synthetic WAV files to `signals/`; the notebook writes filtered WAV files to `output/`. These generated folders are not required in version control because their contents can be recreated.
 
 ## Reference
 
-Van Waterschoot, T., and Moonen, M. (2007). *A Pole-Zero Placement Technique for Designing Second-Order IIR Parametric Equalizer Filters.* Refer to the paper supplied with the assignment for the complete derivation and publication details.
+Van Waterschoot, T., and Moonen, M. (2007). *A Pole-Zero Placement Technique for Designing Second-Order IIR Parametric Equalizer Filters.* The implementation follows the approximate design expressions discussed in this paper.
